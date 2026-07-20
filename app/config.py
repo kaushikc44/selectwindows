@@ -1,0 +1,50 @@
+# app/config.py
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    # Database / broker
+    DATABASE_URL: str = "postgresql+psycopg2://glassquote:glassquote@db:5432/glassquote"
+    REDIS_URL: str = "redis://redis:6379/0"
+    CELERY_BROKER_URL: str = "redis://redis:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://redis:6379/1"
+
+    # IMAP (single shared inbox all field workers send photos to)
+    IMAP_HOST: str = "imap.example.com"
+    IMAP_PORT: int = 993
+    IMAP_USER: str = "quotes@company.com"
+    IMAP_PASSWORD: str = "changeme"
+    IMAP_MAILBOX: str = "INBOX"
+    IMAP_USE_SSL: bool = True
+
+    # SMTP (owner approval email only — no customer email in this PoC)
+    SMTP_HOST: str = "smtp.example.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = "quotes@company.com"
+    SMTP_PASSWORD: str = "changeme"
+    SMTP_USE_TLS: bool = True
+    SMTP_FROM: str = "quotes@company.com"
+
+    OWNER_EMAIL: str = "owner@company.com"
+
+    # LLM (OpenAI-compatible endpoint — OpenAI, NVIDIA NIM, DeepSeek, Ollama /v1, etc.)
+    LLM_BASE_URL: str = "https://api.openai.com/v1"
+    LLM_API_KEY: str = "changeme"
+    LLM_MODEL: str = "gpt-4o-mini"
+    LLM_VISION_MODEL: str = "gpt-4o-mini"
+    LLM_MAX_RETRIES: int = 2
+    LLM_TIMEOUT_SECONDS: int = 60
+
+    # Approval links
+    APPROVAL_SECRET_KEY: str = "changeme-signing-key"
+    APPROVAL_TOKEN_MAX_AGE_SECONDS: int = 60 * 60 * 24 * 7
+    PUBLIC_BASE_URL: str = "http://localhost:8000"
+
+    # Pricing rules / catalog file locations
+    RULES_PATH: str = "app/engine/rules.yaml"
+    CATALOG_PATH: str = "app/engine/catalog.yaml"
+
+
+settings = Settings()

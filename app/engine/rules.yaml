@@ -1,0 +1,14 @@
+glass_prices_per_m2:
+  toughened: "180.00"
+  clear_float: "90.00"
+  laminated: "150.00"
+  double_glazed: "220.00"
+
+waste_percent: "5.0"
+minimum_charge_per_panel: "60.00"
+
+labour:
+  per_panel: "25.00"
+  per_m2: "15.00"
+
+gst_percent: "10.0"

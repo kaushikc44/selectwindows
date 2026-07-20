@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+sqlalchemy>=2.0
+psycopg2-binary
+pydantic>=2
+pydantic-settings
+celery
+redis
+openai
+weasyprint
+itsdangerous
+httpx
+pyyaml
+pytest

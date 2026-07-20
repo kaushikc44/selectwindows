@@ -1,0 +1,6 @@
+{
+  "panels": [
+    {"label": "W1", "width_mm": 1200, "height_mm": 900, "qty": 1, "glass_type": "toughened", "confidence": 0.95}
+  ],
+  "notes": "customer wants matching frame colour"
+}
