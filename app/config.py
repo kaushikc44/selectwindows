@@ -70,5 +70,13 @@ class Settings(BaseSettings):
     # live — keeps Nominatim's 1 req/s policy satisfied and bounds latency.
     GEOCODE_MAX_LOOKUPS_PER_REQUEST: int = 8
 
+    # Google Places — powers the address autocomplete picker in the Sales
+    # (new job) and Owner (edit quote) screens. Called server-side by
+    # app/api/places.py so the key never ships to the app. Empty by default:
+    # the /places/* endpoints return 503 until a key is set here. Reuses the
+    # existing GeocodeCache (app/models.py) so a selected place's lat/lng
+    # pins on Anthony's map with no extra Nominatim lookup.
+    GOOGLE_PLACES_API_KEY: str = ""
+
 
 settings = Settings()

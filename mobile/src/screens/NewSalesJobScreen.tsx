@@ -5,6 +5,7 @@ import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View 
 
 import { ApiError } from "../api/client";
 import { createSalesJob, listTradies, Tradie } from "../api/sales";
+import AddressAutocomplete from "../components/AddressAutocomplete";
 import ChipPicker from "../components/ChipPicker";
 import { RootStackParamList } from "../navigation/types";
 import { shared } from "../theme";
@@ -99,8 +100,7 @@ export default function NewSalesJobScreen() {
           />
         </View>
         <View>
-          <Text style={shared.label}>Site address</Text>
-          <TextInput style={shared.input} value={clientAddress} onChangeText={setClientAddress} multiline />
+          <AddressAutocomplete value={clientAddress} onChange={setClientAddress} />
         </View>
         <View>
           <Text style={shared.label}>Job number (office reference, optional)</Text>

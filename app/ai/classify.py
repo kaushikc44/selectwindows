@@ -38,7 +38,7 @@ Return ONLY JSON, no markdown fences, no prose: {"label": "one_of_the_above"}
 
 def classify_attachment(image_bytes: bytes, mime_type: str) -> str:
     try:
-        raw = vision_completion([(image_bytes, mime_type)], CLASSIFY_PROMPT)
+        raw = vision_completion([(image_bytes, mime_type)], CLASSIFY_PROMPT, purpose="classify")
     except LLMUnavailable as exc:
         logger.error("Classification unavailable, defaulting to 'other': %s", exc)
         return "other"

@@ -19,6 +19,7 @@ import {
   WIND_RATINGS,
   YES_NO_UNMARKED,
 } from "../api/types";
+import AddressAutocomplete from "../components/AddressAutocomplete";
 import ChipPicker from "../components/ChipPicker";
 import { RootStackParamList } from "../navigation/types";
 import { colors, shared } from "../theme";
@@ -431,8 +432,7 @@ export default function OwnerEditQuoteScreen() {
           <TextInput style={shared.input} value={email} onChangeText={setEmail} autoCapitalize="none" />
         </View>
         <View>
-          <Text style={shared.label}>Site address</Text>
-          <TextInput style={shared.input} value={clientAddress} onChangeText={setClientAddress} multiline />
+          <AddressAutocomplete value={clientAddress} onChange={setClientAddress} />
         </View>
         <View>
           <Text style={shared.label}>Job number</Text>

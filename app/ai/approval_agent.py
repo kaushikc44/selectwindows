@@ -81,7 +81,9 @@ def check_against_lessons(quote: Quote, lessons: list[LearnedLesson]) -> list[st
     prompt = CHECK_PROMPT_TEMPLATE.format(lessons_text=_lessons_text(lessons), quote_text=_quote_text(quote))
 
     try:
-        raw_text = chat_completion([{"role": "user", "content": prompt}])
+        raw_text = chat_completion(
+            [{"role": "user", "content": prompt}], purpose="approval_lesson_check", quote_id=quote.id
+        )
     except LLMUnavailable as exc:
         logger.error("Approval-agent lesson check unavailable: %s", exc)
         return []
@@ -92,7 +94,9 @@ def check_against_lessons(quote: Quote, lessons: list[LearnedLesson]) -> list[st
         logger.warning("Approval-agent lesson check JSON invalid, attempting one repair retry: %s", exc)
         try:
             repair_prompt = REPAIR_PROMPT_TEMPLATE.format(error=exc, previous=raw_text)
-            repaired_text = chat_completion([{"role": "user", "content": repair_prompt}])
+            repaired_text = chat_completion(
+                [{"role": "user", "content": repair_prompt}], purpose="approval_lesson_check_repair", quote_id=quote.id
+            )
             return _parse(repaired_text).notes
         except (json.JSONDecodeError, ValidationError, LLMUnavailable) as retry_exc:
             logger.error("Approval-agent lesson check repair retry failed: %s", retry_exc)

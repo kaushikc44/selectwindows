@@ -97,6 +97,13 @@ export default function OwnerQuoteReviewScreen() {
         </TouchableOpacity>
       )}
 
+      <TouchableOpacity
+        style={shared.buttonSecondary}
+        onPress={() => navigation.navigate("OwnerAiLogs", { quoteId: params.quoteId })}
+      >
+        <Text style={shared.buttonSecondaryText}>AI activity on this job</Text>
+      </TouchableOpacity>
+
       <View style={shared.card}>
         <Text style={shared.h2}>Customer &amp; Site</Text>
         {detail.header.phone && <Text style={shared.muted}>Phone: {detail.header.phone}</Text>}

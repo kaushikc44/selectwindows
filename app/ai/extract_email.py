@@ -79,7 +79,7 @@ def extract_email_fields(body_text: str) -> dict[str, FieldValue]:
     else:
         prompt = EMAIL_EXTRACTION_PROMPT_TEMPLATE.format(body_text=body_text)
         try:
-            raw = chat_completion([{"role": "user", "content": prompt}])
+            raw = chat_completion([{"role": "user", "content": prompt}], purpose="extract_email")
         except LLMUnavailable as exc:
             logger.error("Email field extraction unavailable, treating body as empty: %s", exc)
             raw_fields = _RawEmailFields()

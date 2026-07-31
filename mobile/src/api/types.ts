@@ -303,3 +303,34 @@ export interface OwnerMapResponse {
   // In-scope jobs that couldn't be pinpointed (no address / unresolvable).
   unmapped: number;
 }
+
+// GET /owner/ai-logs (maps branch) — Anthony's AI audit trail: every LLM
+// call the system made, with input/output/latency/tokens, optionally scoped
+// to one job. Owner-only. Mirrors app/api/owner_ai_logs.py.
+export interface AiLog {
+  id: string;
+  quote_id: string | null;
+  purpose: string;
+  model: string;
+  input_text: string | null;
+  output_text: string | null;
+  latency_ms: number | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  success: boolean;
+  error: string | null;
+  created_at: string;
+}
+
+export interface AiPurposeCount {
+  purpose: string;
+  count: number;
+  failures: number;
+}
+
+export interface AiLogsResponse {
+  total: number;
+  failures: number;
+  by_purpose: AiPurposeCount[];
+  logs: AiLog[];
+}

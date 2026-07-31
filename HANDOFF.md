@@ -557,6 +557,58 @@ reschedules), alongside a new demo `sales1`/`salespass123` account.
   user — default assumption in the plan is "keep it running until the app
   is proven," unless told otherwise.
 
+## Phase H — Google Places address autocomplete
+
+The "Site address" field used to be free-text on two screens — Sales
+creating a job (`NewSalesJobScreen`) and the owner editing a quote
+(`OwnerEditQuoteScreen`) — so addresses were inconsistent and Anthony's
+job map often couldn't geocode them. Phase H replaces both with a Google
+Places autocomplete picker: as the rep types, suggestions appear; tapping
+one resolves the formatted address (and caches its lat/lng server-side
+for the map).
+
+**Backend — `app/api/places.py`** (new). A server-side proxy to Google's
+legacy Places Autocomplete/Details JSON endpoints via `httpx` (already a
+dependency — pattern mirrors `app/geocode.py`). The Google API key stays
+server-side in `app/config.py::GOOGLE_PLACES_API_KEY` (and `.env.example`),
+never bundled into the mobile app. Two endpoints, both gated by
+`get_current_worker` (both Sales and Owner edit addresses, so neither
+`require_sales` nor `require_owner` is the right gate):
+
+  - `GET /places/autocomplete?input=…` → `[{place_id, description}, …]`
+    (debounced client-side; the endpoint is stateless; `components=country:au`).
+  - `GET /places/details?place_id=…` → `{formatted_address, lat, lng}`.
+
+The details endpoint has a deliberate side effect: it **upserts the
+place's lat/lng into the existing `GeocodeCache` table**, keyed by
+`normalise_address(formatted_address)` — the same key
+`app/api/owner_quotes.py::_map_address` reads for Anthony's job map. So
+the moment a place is selected, the map can pin it next open with no
+extra Nominatim lookup. This reuses the existing geocoding cache rather
+than adding a parallel one. **No new table, no `_SCHEMA_PATCHES` entry.**
+
+Key-absent guard: with `GOOGLE_PLACES_API_KEY` empty (the default), both
+endpoints return `503 "GOOGLE_PLACES_API_KEY not configured"` before any
+network call — verified live. Set the key in `.env` and `docker compose
+restart app` to activate. Swapping to the Places API (New) later would
+only mean rewriting the two `_google_*` helpers — the router shape stays.
+
+**Mobile.** New `api/places.ts` (`addressAutocomplete`/`getPlaceDetails`,
+thin `apiGet` wrappers) and a hand-rolled `components/AddressAutocomplete.tsx`
+(no existing autocomplete to mirror — TextInput + 300ms debounce + FlatList
+dropdown, themed with `shared.input`/`colors`). The two screens swap their
+free-text `TextInput` for `<AddressAutocomplete value=… onChange=… />`;
+the `createSalesJob`/`editQuote` payloads and backend write paths are
+unchanged — `client_address` still flows as before.
+
+**Tests** — `tests/test_places.py` covers autocomplete parsing, the
+details→`GeocodeCache` upsert (insert + update-in-place), the 503
+key-absent path, and the 401 unauthenticated path. Also fixed a
+pre-existing stale `test_models.py::test_nine_tables_created` (now
+`test_tables_created`) that never accounted for the `geocode_cache`
+table added back in the maps branch. Full suite: 446 passed, 1 skipped.
+`npx tsc --noEmit` clean.
+
 ## Quick orientation for whoever picks this up
 
 - Backend: `/Users/kaushikchoudhury/selectwindows/app/` — FastAPI +

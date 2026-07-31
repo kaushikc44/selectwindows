@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.ai.approval_agent import check_against_lessons
 from app.ai.enrich_materials import generate_material_estimate
 from app.ai.extract_email import extract_email_fields
+from app.ai.llm import ai_quote_context
 from app.config import settings
 from app.engine.enrich import EnrichmentResult, enrich_item, load_defaults
 from app.engine.flags import DOOR_PRODUCT_TYPES, Flag, build_flags, compute_readiness_score
@@ -410,9 +411,10 @@ def process_worker_submission_pipeline(db: Session, quote: Quote) -> None:
     (app/api/worker_quotes.py) already validated every item has resolved
     dimensions before calling this, so it goes straight to pricing."""
     try:
-        run_pricing(db, quote)
-        run_enrichment_and_flags(db, quote)
-        send_for_approval(db, quote)
+        with ai_quote_context(quote.id):
+            run_pricing(db, quote)
+            run_enrichment_and_flags(db, quote)
+            send_for_approval(db, quote)
     except Exception as exc:  # noqa: BLE001 - pipeline must never crash the worker
         logger.exception("Unhandled error processing worker submission %s", quote.id)
         quote.status = QuoteStatus.needs_manual
@@ -434,22 +436,23 @@ def process_quote_pipeline(
         db, from_address=from_address, email_message_id=email_message_id, images=images, body_text=body_text
     )
     try:
-        image_payloads: list[tuple[bytes, str]] = []
-        for image in images:
-            with open(image.storage_path, "rb") as f:
-                image_payloads.append((f.read(), image.content_type))
+        with ai_quote_context(quote.id):
+            image_payloads: list[tuple[bytes, str]] = []
+            for image in images:
+                with open(image.storage_path, "rb") as f:
+                    image_payloads.append((f.read(), image.content_type))
 
-        kinds = run_classification(quote, image_payloads)
-        run_extraction(db, quote, image_payloads, kinds, body_text)
+            kinds = run_classification(quote, image_payloads)
+            run_extraction(db, quote, image_payloads, kinds, body_text)
 
-        if quote.status not in (QuoteStatus.needs_manual, QuoteStatus.awaiting_info):
-            missing = missing_critical_fields(quote)
-            if missing:
-                send_awaiting_info(db, quote, missing)
-            else:
-                run_pricing(db, quote)
-                run_enrichment_and_flags(db, quote)
-                send_for_approval(db, quote)
+            if quote.status not in (QuoteStatus.needs_manual, QuoteStatus.awaiting_info):
+                missing = missing_critical_fields(quote)
+                if missing:
+                    send_awaiting_info(db, quote, missing)
+                else:
+                    run_pricing(db, quote)
+                    run_enrichment_and_flags(db, quote)
+                    send_for_approval(db, quote)
     except Exception as exc:  # noqa: BLE001 - pipeline must never crash the worker
         logger.exception("Unhandled error processing quote %s", quote.id)
         quote.status = QuoteStatus.needs_manual
@@ -509,40 +512,41 @@ def process_reply_pipeline(db: Session, quote: Quote, body_text: str, images: li
     """Merges a rep's reply to a missing-info request back into the quote
     and continues the pipeline, or asks again if still incomplete."""
     try:
-        missing = json.loads(quote.awaiting_info_fields or "[]")
+        with ai_quote_context(quote.id):
+            missing = json.loads(quote.awaiting_info_fields or "[]")
 
-        if missing == [DIMENSION_CONFLICT_MARKER]:
-            _process_dimension_conflict_reply(db, quote, body_text, images or [])
-        else:
-            email_fields = extract_email_fields(body_text)
-
-            if "client_name" in missing and email_fields["client_name"].value:
-                if quote.header is None:
-                    quote.header = QuoteHeader()
-                quote.header.client_name = email_fields["client_name"].value
-
-            if "product_type" in missing and email_fields["product_hint"].value:
-                product_type, material, config_code = map_product_hint(email_fields["product_hint"].value)
-                for item in quote.items:
-                    if product_type != "unknown" and item.product_type == ProductType.unknown:
-                        item.product_type = ProductType(product_type)
-                    if material != "unknown" and item.material == Material.unknown:
-                        item.material = Material(material)
-                    if config_code and not item.config_code:
-                        item.config_code = config_code
-
-            log_event(db, quote.id, "rep_reply_merged")
-
-            still_missing = missing_critical_fields(quote)
-            if still_missing:
-                send_awaiting_info(db, quote, still_missing)
+            if missing == [DIMENSION_CONFLICT_MARKER]:
+                _process_dimension_conflict_reply(db, quote, body_text, images or [])
             else:
-                quote.status = QuoteStatus.extracted
-                quote.awaiting_info_message_id = None
-                quote.awaiting_info_fields = None
-                run_pricing(db, quote)
-                run_enrichment_and_flags(db, quote)
-                send_for_approval(db, quote)
+                email_fields = extract_email_fields(body_text)
+
+                if "client_name" in missing and email_fields["client_name"].value:
+                    if quote.header is None:
+                        quote.header = QuoteHeader()
+                    quote.header.client_name = email_fields["client_name"].value
+
+                if "product_type" in missing and email_fields["product_hint"].value:
+                    product_type, material, config_code = map_product_hint(email_fields["product_hint"].value)
+                    for item in quote.items:
+                        if product_type != "unknown" and item.product_type == ProductType.unknown:
+                            item.product_type = ProductType(product_type)
+                        if material != "unknown" and item.material == Material.unknown:
+                            item.material = Material(material)
+                        if config_code and not item.config_code:
+                            item.config_code = config_code
+
+                log_event(db, quote.id, "rep_reply_merged")
+
+                still_missing = missing_critical_fields(quote)
+                if still_missing:
+                    send_awaiting_info(db, quote, still_missing)
+                else:
+                    quote.status = QuoteStatus.extracted
+                    quote.awaiting_info_message_id = None
+                    quote.awaiting_info_fields = None
+                    run_pricing(db, quote)
+                    run_enrichment_and_flags(db, quote)
+                    send_for_approval(db, quote)
     except Exception as exc:  # noqa: BLE001 - pipeline must never crash the worker
         logger.exception("Unhandled error processing reply for quote %s", quote.id)
         quote.status = QuoteStatus.needs_manual

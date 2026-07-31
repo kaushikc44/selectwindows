@@ -125,7 +125,7 @@ export default function OwnerMapScreen() {
   return (
     <View style={shared.screen}>
       <View style={{ padding: 20, paddingBottom: 8, gap: 4 }}>
-        <Text style={shared.h1}>Job Map · NSW</Text>
+        <Text style={shared.h1}>Maps</Text>
         <Text style={shared.muted}>
           {pins.length} pinpointed
           {data && data.unmapped > 0 ? ` · ${data.unmapped} without a resolvable address` : ""}

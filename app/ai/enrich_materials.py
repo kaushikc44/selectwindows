@@ -68,7 +68,7 @@ def generate_material_estimate(
     )
 
     try:
-        raw_text = chat_completion([{"role": "user", "content": prompt}])
+        raw_text = chat_completion([{"role": "user", "content": prompt}], purpose="enrich_materials")
     except LLMUnavailable as exc:
         logger.error("Material estimate unavailable: %s", exc)
         return None
@@ -79,7 +79,7 @@ def generate_material_estimate(
         logger.warning("Material estimate JSON invalid, attempting one repair retry: %s", exc)
         try:
             repair_prompt = REPAIR_PROMPT_TEMPLATE.format(error=exc, previous=raw_text)
-            repaired_text = chat_completion([{"role": "user", "content": repair_prompt}])
+            repaired_text = chat_completion([{"role": "user", "content": repair_prompt}], purpose="enrich_materials_repair")
             return _parse(repaired_text)
         except (json.JSONDecodeError, ValidationError, LLMUnavailable) as retry_exc:
             logger.error("Material estimate repair retry failed: %s", retry_exc)

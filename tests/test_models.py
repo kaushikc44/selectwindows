@@ -25,7 +25,7 @@ def _sqlite_engine():
     return engine
 
 
-def test_nine_tables_created():
+def test_tables_created():
     engine = _sqlite_engine()
     tables = set(inspect(engine).get_table_names())
     assert tables == {
@@ -38,6 +38,8 @@ def test_nine_tables_created():
         "workers",
         "approval_comments",
         "learned_lessons",
+        "geocode_cache",
+        "ai_call_logs",
     }
 
 

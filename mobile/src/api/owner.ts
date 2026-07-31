@@ -1,5 +1,5 @@
 import { apiGet, apiPostJson } from "./client";
-import { ExtractionHeader, ExtractionInstallation, Material, OwnerMapResponse, OwnerQuoteDetail, OwnerQuoteSummary, ProductType } from "./types";
+import { AiLogsResponse, ExtractionHeader, ExtractionInstallation, Material, OwnerMapResponse, OwnerQuoteDetail, OwnerQuoteSummary, ProductType } from "./types";
 
 export function listOwnerQueue(): Promise<OwnerQuoteSummary[]> {
   return apiGet<OwnerQuoteSummary[]>("/owner/quotes");
@@ -9,6 +9,13 @@ export function listOwnerQueue(): Promise<OwnerQuoteSummary[]> {
 // Owner-only on the backend, so this returns 403 for non-owner tokens.
 export function getOwnerMap(): Promise<OwnerMapResponse> {
   return apiGet<OwnerMapResponse>("/owner/quotes/map");
+}
+
+// Anthony's AI audit trail (maps branch) — every LLM call per job, with the
+// input sent and the output returned. Owner-only.
+export function getAiLogs(quoteId?: string): Promise<AiLogsResponse> {
+  const qs = quoteId ? `?quote_id=${encodeURIComponent(quoteId)}` : "";
+  return apiGet<AiLogsResponse>(`/owner/ai-logs${qs}`);
 }
 
 export function getOwnerQuote(quoteId: string): Promise<OwnerQuoteDetail> {

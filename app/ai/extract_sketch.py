@@ -44,7 +44,7 @@ class SketchAnnotation(BaseModel):
 
 def extract_sketch_annotations(image_bytes: bytes, mime_type: str) -> list[SketchAnnotation]:
     try:
-        raw = vision_completion([(image_bytes, mime_type)], SKETCH_EXTRACTION_PROMPT)
+        raw = vision_completion([(image_bytes, mime_type)], SKETCH_EXTRACTION_PROMPT, purpose="extract_sketch")
     except LLMUnavailable as exc:
         logger.error("Sketch annotation extraction unavailable: %s", exc)
         return []

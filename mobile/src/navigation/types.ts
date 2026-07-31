@@ -9,6 +9,7 @@ export type RootStackParamList = {
   QuoteDetail: { quoteId: string };
   OwnerQueue: undefined;
   OwnerMap: undefined;
+  OwnerAiLogs: { quoteId?: string } | undefined;
   OwnerQuoteReview: { quoteId: string };
   OwnerEditQuote: { quoteId: string };
   SalesJobList: undefined;

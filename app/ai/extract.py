@@ -99,7 +99,7 @@ def extract_quote(images: list[tuple[bytes, str]], body_text: str) -> Extraction
     prompt = EXTRACTION_PROMPT_TEMPLATE.format(body_text=body_text or "(no text in email body)")
 
     try:
-        raw_text = vision_completion(images, prompt)
+        raw_text = vision_completion(images, prompt, purpose="extract")
     except LLMUnavailable as exc:
         logger.error("Vision extraction unavailable: %s", exc)
         return ExtractionOutcome(result=None, needs_manual=True, reason="llm_unavailable")
@@ -110,7 +110,7 @@ def extract_quote(images: list[tuple[bytes, str]], body_text: str) -> Extraction
         logger.warning("Extraction JSON invalid, attempting one repair retry: %s", exc)
         try:
             repair_prompt = REPAIR_PROMPT_TEMPLATE.format(error=exc, previous=raw_text)
-            repaired_text = vision_completion(images, repair_prompt)
+            repaired_text = vision_completion(images, repair_prompt, purpose="extract_repair")
             result = _parse(repaired_text)
         except (json.JSONDecodeError, ValidationError, LLMUnavailable) as retry_exc:
             logger.error("Extraction repair retry failed: %s", retry_exc)

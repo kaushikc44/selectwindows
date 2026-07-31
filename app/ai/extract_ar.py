@@ -60,7 +60,7 @@ def extract_ar_readings(image_bytes: bytes, mime_type: str) -> list[ARReading]:
     """Reads AR-overlay pills from one photo. Unit conversion happens here in
     plain Python (app.engine.units), never by asking the LLM to do math."""
     try:
-        raw = vision_completion([(image_bytes, mime_type)], AR_EXTRACTION_PROMPT)
+        raw = vision_completion([(image_bytes, mime_type)], AR_EXTRACTION_PROMPT, purpose="extract_ar")
     except LLMUnavailable as exc:
         logger.error("AR extraction unavailable: %s", exc)
         return []
@@ -195,7 +195,7 @@ def extract_grouped_readings(images: list[tuple[bytes, str]], body_text: str) ->
     prompt = GROUPED_EXTRACTION_PROMPT_TEMPLATE.format(body_text=body_text or "(no text in email body)")
 
     try:
-        raw_text = vision_completion(images, prompt)
+        raw_text = vision_completion(images, prompt, purpose="extract_ar")
     except LLMUnavailable as exc:
         logger.error("Grouped extraction unavailable: %s", exc)
         return GroupedExtractionResult(items=[])
@@ -206,7 +206,7 @@ def extract_grouped_readings(images: list[tuple[bytes, str]], body_text: str) ->
         logger.warning("Grouped extraction JSON invalid, attempting one repair retry: %s", exc)
         try:
             repair_prompt = REPAIR_PROMPT_TEMPLATE.format(error=exc, previous=raw_text)
-            repaired_text = vision_completion(images, repair_prompt)
+            repaired_text = vision_completion(images, repair_prompt, purpose="extract_ar_repair")
             return _parse_grouped(repaired_text)
         except (json.JSONDecodeError, ValidationError, LLMUnavailable) as retry_exc:
             logger.error("Grouped extraction repair retry failed: %s", retry_exc)

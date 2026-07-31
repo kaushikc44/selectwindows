@@ -76,7 +76,7 @@ def extract_single_reading(
     prompt = FIELD_EXTRACTION_PROMPT_TEMPLATE.format(axis=axis)
 
     try:
-        raw_text = vision_completion([(image_bytes, mime_type)], prompt)
+        raw_text = vision_completion([(image_bytes, mime_type)], prompt, purpose="extract_ar_field")
     except LLMUnavailable as exc:
         logger.error("Single-field AR extraction unavailable: %s", exc)
         return None
@@ -87,7 +87,7 @@ def extract_single_reading(
         logger.warning("Single-field AR extraction JSON invalid, attempting one repair retry: %s", exc)
         try:
             repair_prompt = REPAIR_PROMPT_TEMPLATE.format(error=exc, previous=raw_text)
-            repaired_text = vision_completion([(image_bytes, mime_type)], repair_prompt)
+            repaired_text = vision_completion([(image_bytes, mime_type)], repair_prompt, purpose="extract_ar_field_repair")
             parsed = _parse(repaired_text)
         except (json.JSONDecodeError, ValidationError, LLMUnavailable) as retry_exc:
             logger.error("Single-field AR extraction repair retry failed: %s", retry_exc)

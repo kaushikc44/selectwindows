@@ -6,7 +6,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.owner_ai_logs import router as owner_ai_logs_router
 from app.api.owner_quotes import router as owner_quotes_router
+from app.api.places import router as places_router
 from app.api.sales_quotes import router as sales_quotes_router
 from app.api.sales_quotes import tradies_router as sales_tradies_router
 from app.api.worker_quotes import preview_router as worker_preview_router
@@ -28,8 +30,10 @@ app = FastAPI(title="GlassQuote PoC", lifespan=lifespan)
 app.include_router(worker_quotes_router)
 app.include_router(worker_preview_router)
 app.include_router(owner_quotes_router)
+app.include_router(owner_ai_logs_router)
 app.include_router(sales_quotes_router)
 app.include_router(sales_tradies_router)
+app.include_router(places_router)
 
 
 @app.post("/auth/login", response_model=WorkerTokenOut)

@@ -427,3 +427,37 @@ class GeocodeCache(Base):
     lng: Mapped[float | None] = mapped_column(Float, nullable=True)
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AiCallLog(Base):
+    """One row per LLM call, anywhere in the pipeline — the audit trail for
+    the AI that learns/surfaces on Anthony's behalf (maps branch). Captures
+    what was sent in, what came back, how long it took, and token usage, so
+    Anthony can see exactly what the AI did on each job. Written by
+    app/ai/llm.py from inside chat_completion / vision_completion in its own
+    DB session, so a pipeline rollback never loses the audit row and the log
+    works identically in the web process and the Celery worker. New table →
+    app/db.py::create_all creates it cleanly, no Alembic migration."""
+
+    __tablename__ = "ai_call_logs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    # The job this call was made for — null for calls outside a per-job
+    # pipeline context (or where the pipeline couldn't supply one).
+    quote_id: Mapped[str | None] = mapped_column(ForeignKey("quotes.id"), nullable=True, index=True)
+    # Which step of the pipeline made the call, e.g. "extract_email",
+    # "classify", "enrich_materials", "approval_lesson_check". Suffix
+    # "_repair" marks a JSON-repair retry of a prior call.
+    purpose: Mapped[str] = mapped_column(String(60), index=True)
+    model: Mapped[str] = mapped_column(String(120))
+    # The text prompt / messages actually sent. For vision calls this is the
+    # text prompt plus an image manifest (count, mime, byte size) — the base64
+    # image bytes are deliberately not stored (too large for an audit table).
+    input_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    output_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    prompt_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    completion_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    success: Mapped[bool] = mapped_column(Boolean, default=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
