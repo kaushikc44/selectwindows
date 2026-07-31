@@ -276,3 +276,30 @@ export interface OwnerQuoteDetail {
   tradie_name: string | null;
   readiness_score: number | null;
 }
+
+// GET /owner/quotes/map (maps branch) — geocoded pins for Anthony's in-flight
+// NSW jobs. "pending" = a job still awaiting Anthony's decision; "ongoing" =
+// already past his desk (or a Sales-booked site visit). Only the owner role
+// can reach the endpoint, so only Anthony sees job locations. Mirrors
+// app/api/owner_quotes.py::OwnerMapPin / OwnerMapResponse.
+export type OwnerMapCategory = "pending" | "ongoing";
+
+export interface OwnerMapPin {
+  quote_id: string;
+  status: string;
+  category: OwnerMapCategory;
+  client_name: string | null;
+  address: string | null;
+  lat: number;
+  lng: number;
+  total: string | null;
+  scheduled_date: string | null;
+  tradie_name: string | null;
+  readiness_score: number | null;
+}
+
+export interface OwnerMapResponse {
+  pins: OwnerMapPin[];
+  // In-scope jobs that couldn't be pinpointed (no address / unresolvable).
+  unmapped: number;
+}

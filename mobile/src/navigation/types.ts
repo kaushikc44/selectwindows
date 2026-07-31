@@ -8,6 +8,7 @@ export type RootStackParamList = {
   ReviewSubmit: { quoteId: string };
   QuoteDetail: { quoteId: string };
   OwnerQueue: undefined;
+  OwnerMap: undefined;
   OwnerQuoteReview: { quoteId: string };
   OwnerEditQuote: { quoteId: string };
   SalesJobList: undefined;

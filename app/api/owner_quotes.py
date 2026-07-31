@@ -16,8 +16,10 @@ from sqlalchemy.orm import Session
 
 from app.api.worker_quotes import CommentOut, QuoteFlag
 from app.auth import require_owner
+from app.config import settings
 from app.db import get_db
-from app.models import ApprovalComment, Installation, Item, LearnedLesson, Material, ProductType, Quote, QuoteStatus, Worker
+from app.geocode import geocode_address, normalise_address
+from app.models import ApprovalComment, GeocodeCache, Installation, Item, LearnedLesson, Material, ProductType, Quote, QuoteStatus, Worker
 from app.schemas import ExtractionHeader, ExtractionInstallation
 from app.workers.persist import log_event
 from app.workers.pipeline import recompute_pricing_and_flags
@@ -286,6 +288,141 @@ def list_owner_queue(owner: Worker = Depends(require_owner), db: Session = Depen
         }
         for q in quotes
     ]
+
+
+# ---------------------------------------------------------------------------
+# Anthony's job map (maps branch)
+#
+# A geocoded view of his in-flight work — every job that's either waiting on
+# his decision or already moving through the field, pinpointed on a map of
+# NSW by the house address entered on the quote. Only the owner role can
+# reach this endpoint (require_owner), so only Anthony sees where his jobs
+# are. See app/geocode.py for the Nominatim lookup + NSW bounding box, and
+# app/models.py::GeocodeCache for why re-opens don't re-geocode. Declared
+# BEFORE the /{quote_id} route so FastAPI matches the literal "/map" path
+# first instead of treating "map" as a quote_id.
+# ---------------------------------------------------------------------------
+
+# Statuses that have a physical job location Anthony would act on. The
+# review-queue endpoint above (_QUEUE_STATUSES) deliberately excludes the
+# early transient states; this map is broader — it also includes
+# scheduled/missed, because a site visit Sales booked (app/api/sales_quotes.py)
+# is "ongoing work" Anthony wants to see even before it reaches him for
+# pricing. rejected is excluded: the job is dead, not ongoing.
+_MAP_STATUSES = (
+    QuoteStatus.pending_approval,  # needs Anthony's approval — "pending"
+    QuoteStatus.needs_manual,  # needs Anthony's approval — "pending"
+    QuoteStatus.changes_requested,  # back with the tradie — "ongoing"
+    QuoteStatus.approved,  # being built — "ongoing"
+    QuoteStatus.scheduled,  # site visit booked — "ongoing"
+    QuoteStatus.missed,  # visit didn't happen, awaiting reschedule — "ongoing"
+)
+
+# "pending" = Anthony still owes a decision; "ongoing" = already past his
+# desk (or never on it — scheduled/missed). The mobile map colours pins by
+# this category so he can spot what needs his attention at a glance.
+_PENDING_STATUSES = frozenset({QuoteStatus.pending_approval, QuoteStatus.needs_manual})
+
+
+class OwnerMapPin(BaseModel):
+    quote_id: str
+    status: str
+    category: Literal["pending", "ongoing"]
+    client_name: str | None = None
+    address: str | None = None
+    lat: float
+    lng: float
+    total: str | None = None
+    scheduled_date: str | None = None
+    tradie_name: str | None = None
+    readiness_score: int | None = None
+
+
+class OwnerMapResponse(BaseModel):
+    pins: list[OwnerMapPin]
+    # Jobs in-scope that couldn't be pinpointed — either no address on the
+    # quote, or the address couldn't be geocoded to a NSW point. Surfaced as
+    # a count so Anthony knows the map isn't the whole picture.
+    unmapped: int
+
+
+def _map_address(quote: Quote) -> str:
+    """The house location to pinpoint — prefer the property/install address
+    (client_address), fall back to the delivery address. Normalised for the
+    geocode cache key by app/geocode.py::normalise_address upstream."""
+    header = quote.header
+    if header is None:
+        return ""
+    return normalise_address(header.client_address) or normalise_address(header.delivery_address)
+
+
+@router.get("/map", response_model=OwnerMapResponse)
+def get_owner_map(owner: Worker = Depends(require_owner), db: Session = Depends(get_db)) -> dict:
+    """Geocoded pins for Anthony's in-flight NSW jobs — only the owner role
+    can call this, so only he sees job locations. Resolves each quote's
+    house address to a lat/lng (cache-first, then Nominatim capped at
+    GEOCODE_MAX_LOOKUPS_PER_REQUEST live lookups so Nominatim's 1 req/s policy
+    holds). Quotes with no address or an unresolvable one are counted in
+    `unmapped` rather than dropped silently."""
+    quotes = db.scalars(
+        select(Quote).where(Quote.status.in_(_MAP_STATUSES)).order_by(Quote.created_at.desc())
+    ).all()
+
+    # Cache lookup is one indexed query per address — collect them in one
+    # SELECT instead so a full map open isn't N queries.
+    addresses = [addr for addr in (_map_address(q) for q in quotes) if addr]
+    cache_rows: dict[str, GeocodeCache] = {}
+    if addresses:
+        for row in db.scalars(select(GeocodeCache).where(GeocodeCache.address.in_(addresses))):
+            cache_rows[row.address] = row
+
+    fresh_budget = settings.GEOCODE_MAX_LOOKUPS_PER_REQUEST
+    pins: list[dict] = []
+    unmapped = 0
+
+    for quote in quotes:
+        address = _map_address(quote)
+        if not address:
+            unmapped += 1
+            continue
+
+        row = cache_rows.get(address)
+        if row is None:
+            # No cache entry yet — geocode live if the per-request budget
+            # allows, otherwise leave it for a later pass and count unmapped.
+            if fresh_budget <= 0:
+                unmapped += 1
+                continue
+            fresh_budget -= 1
+            coords = geocode_address(address)
+            row = GeocodeCache(address=address, resolved=coords is not None)
+            if coords is not None:
+                row.lat, row.lng = coords
+            db.add(row)
+            cache_rows[address] = row
+
+        if not row.resolved or row.lat is None or row.lng is None:
+            unmapped += 1
+            continue
+
+        pins.append(
+            {
+                "quote_id": quote.id,
+                "status": quote.status.value,
+                "category": "pending" if quote.status in _PENDING_STATUSES else "ongoing",
+                "client_name": quote.header.client_name if quote.header else None,
+                "address": address,
+                "lat": row.lat,
+                "lng": row.lng,
+                "total": str(quote.total) if quote.total is not None else None,
+                "scheduled_date": quote.scheduled_date,
+                "tradie_name": _tradie_name(quote),
+                "readiness_score": quote.readiness_score,
+            }
+        )
+
+    db.commit()
+    return {"pins": pins, "unmapped": unmapped}
 
 
 @router.get("/{quote_id}", response_model=OwnerQuoteDetail)

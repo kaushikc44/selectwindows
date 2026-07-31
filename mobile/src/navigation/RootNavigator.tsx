@@ -11,6 +11,7 @@ import JobListScreen from "../screens/JobListScreen";
 import LoginScreen from "../screens/LoginScreen";
 import NewSalesJobScreen from "../screens/NewSalesJobScreen";
 import OwnerEditQuoteScreen from "../screens/OwnerEditQuoteScreen";
+import OwnerMapScreen from "../screens/OwnerMapScreen";
 import OwnerQueueScreen from "../screens/OwnerQueueScreen";
 import OwnerQuoteReviewScreen from "../screens/OwnerQuoteReviewScreen";
 import PropertyDetailsScreen from "../screens/PropertyDetailsScreen";
@@ -45,6 +46,7 @@ export default function RootNavigator() {
           // bolted onto another role's flow.
           <>
             <Stack.Screen name="OwnerQueue" component={OwnerQueueScreen} options={{ title: "Review Queue" }} />
+            <Stack.Screen name="OwnerMap" component={OwnerMapScreen} options={{ title: "Job Map · NSW" }} />
             <Stack.Screen
               name="OwnerQuoteReview"
               component={OwnerQuoteReviewScreen}

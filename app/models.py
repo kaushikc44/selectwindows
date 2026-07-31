@@ -404,3 +404,26 @@ class LearnedLesson(Base):
     fix_summary: Mapped[str] = mapped_column(Text)
     source_comment_id: Mapped[str | None] = mapped_column(ForeignKey("approval_comments.id"), nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GeocodeCache(Base):
+    """A lookup from a normalised property address to a resolved lat/lng, used
+    by app/api/owner_quotes.py::get_owner_map so Anthony's job map (maps
+    branch) doesn't re-geocode the same NSW address on every open — Nominatim
+    is rate-limited to 1 req/s, so caching is mandatory. A new table (not a
+    column on Quote), so app/db.py::create_all creates it cleanly without
+    touching existing tables — no Alembic migration needed. `resolved=False`
+    means we tried and the address couldn't be pinpointed; we cache that too
+    so a stubbornly unmappable address doesn't burn a network call every
+    time Anthony opens the map."""
+
+    __tablename__ = "geocode_cache"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    # Normalised by app/geocode.py::normalise_address before storing/lookup
+    # so "12 Main St, Newtown NSW" and "12 main st newton nsw" hit one row.
+    address: Mapped[str] = mapped_column(String(500), unique=True, index=True)
+    lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lng: Mapped[float | None] = mapped_column(Float, nullable=True)
+    resolved: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())

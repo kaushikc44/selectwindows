@@ -66,8 +66,17 @@ export default function OwnerQueueScreen() {
 
   return (
     <View style={shared.screen}>
-      <View style={{ padding: 20, gap: 4 }}>
-        <Text style={shared.h1}>Review Queue</Text>
+      <View style={{ padding: 20, gap: 8 }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Text style={shared.h1}>Review Queue</Text>
+          <TouchableOpacity
+            style={shared.buttonSecondary}
+            onPress={() => navigation.navigate("OwnerMap")}
+          >
+            <Text style={shared.buttonSecondaryText}>View job map</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={shared.muted}>NSW jobs pinpointed by the house address entered on each quote.</Text>
       </View>
 
       <FlatList

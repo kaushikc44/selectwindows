@@ -58,5 +58,17 @@ class Settings(BaseSettings):
     RULES_PATH: str = "app/engine/rules.yaml"
     DEFAULTS_PATH: str = "app/engine/defaults.yaml"
 
+    # Geocoding for Anthony's job map (maps branch). Nominatim (OpenStreetMap)
+    # is free and needs no API key, but requires a descriptive User-Agent and
+    # is rate-limited to 1 request/second — see app/geocode.py. Set
+    # GEOCODE_ENABLED=false to skip live lookups and return only cached
+    # coordinates (the map still loads, just with no fresh pins until a
+    # later pass fills the cache).
+    GEOCODE_USER_AGENT: str = "glassquote-nsw-jobmap/1.0"
+    GEOCODE_ENABLED: bool = True
+    # Hard cap on how many uncached addresses one map request will geocode
+    # live — keeps Nominatim's 1 req/s policy satisfied and bounds latency.
+    GEOCODE_MAX_LOOKUPS_PER_REQUEST: int = 8
+
 
 settings = Settings()

@@ -1,8 +1,14 @@
 import { apiGet, apiPostJson } from "./client";
-import { ExtractionHeader, ExtractionInstallation, Material, OwnerQuoteDetail, OwnerQuoteSummary, ProductType } from "./types";
+import { ExtractionHeader, ExtractionInstallation, Material, OwnerMapResponse, OwnerQuoteDetail, OwnerQuoteSummary, ProductType } from "./types";
 
 export function listOwnerQueue(): Promise<OwnerQuoteSummary[]> {
   return apiGet<OwnerQuoteSummary[]>("/owner/quotes");
+}
+
+// Anthony's job map (maps branch) — geocoded NSW pins for his in-flight work.
+// Owner-only on the backend, so this returns 403 for non-owner tokens.
+export function getOwnerMap(): Promise<OwnerMapResponse> {
+  return apiGet<OwnerMapResponse>("/owner/quotes/map");
 }
 
 export function getOwnerQuote(quoteId: string): Promise<OwnerQuoteDetail> {
