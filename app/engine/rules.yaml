@@ -1,14 +1,49 @@
-glass_prices_per_m2:
-  toughened: "180.00"
-  clear_float: "90.00"
-  laminated: "150.00"
-  double_glazed: "220.00"
+# PLACEHOLDER PRICING — these are not real Select Window Installations prices.
+# Structure only: drop a real price matrix in by editing this file's values —
+# no code changes needed as long as the key shapes below are kept.
+placeholder: true
 
-waste_percent: "5.0"
-minimum_charge_per_panel: "60.00"
+# base_prices[product_type][material] = base unit price for a "medium" sized item
+base_prices:
+  awning: {aluminium: "450.00", timber: "650.00", unknown: "500.00"}
+  casement: {aluminium: "480.00", timber: "680.00", unknown: "520.00"}
+  sliding: {aluminium: "520.00", timber: "720.00", unknown: "560.00"}
+  double_hung: {aluminium: "600.00", timber: "850.00", unknown: "650.00"}
+  louvre: {aluminium: "400.00", timber: "600.00", unknown: "450.00"}
+  powerlouvre: {aluminium: "700.00", timber: "900.00", unknown: "750.00"}
+  bi_fold: {aluminium: "900.00", timber: "1300.00", unknown: "1000.00"}
+  sashless: {aluminium: "750.00", timber: "1000.00", unknown: "800.00"}
+  gas_strut: {aluminium: "500.00", timber: "700.00", unknown: "550.00"}
+  stacking: {aluminium: "1200.00", timber: "1600.00", unknown: "1300.00"}
+  hinged: {aluminium: "550.00", timber: "800.00", unknown: "600.00"}
+  cedar_entry: {aluminium: "900.00", timber: "1400.00", unknown: "1000.00"}
+  unknown: {aluminium: "500.00", timber: "700.00", unknown: "550.00"}
 
-labour:
-  per_panel: "25.00"
-  per_m2: "15.00"
+# picked by max(height_mm, width_mm) <= max_mm, first match wins (ascending order)
+size_bands:
+  - {band: small, max_mm: 900, multiplier: "0.8"}
+  - {band: medium, max_mm: 1500, multiplier: "1.0"}
+  - {band: large, max_mm: 2400, multiplier: "1.4"}
+  - {band: xl, max_mm: 6000, multiplier: "1.8"}
+
+# applied on top of base x size_band, matched from the quote header's free-text "glass" field
+glass_multipliers:
+  single: "1.0"
+  double_glazed: "1.3"
+  acoustic: "1.5"
+  toughened: "1.2"
+  BAL40_pyro: "1.6"
+
+installation:
+  per_item_base_fee: "150.00"
+  floor_level_surcharge:
+    ground: "0.00"
+    "1st": "100.00"
+    "2nd": "200.00"
+    "3rd": "350.00"
+  brick_removal_per_m2: "150.00"
+  scaffold_flat_fee: "300.00"
+  hoist_flat_fee: "400.00"
+  brick_saw_flat_fee: "120.00"
 
 gst_percent: "10.0"

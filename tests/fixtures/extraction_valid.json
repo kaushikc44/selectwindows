@@ -1,6 +1,26 @@
 {
-  "panels": [
-    {"label": "W1", "width_mm": 1200, "height_mm": 900, "qty": 1, "glass_type": "toughened", "confidence": 0.95}
+  "header": {
+    "client_name": "Sarah Nguyen", "client_address": null, "contact_name": null,
+    "phone": null, "email": null, "job_no": null, "rep": null, "date": null,
+    "delivery_address": null, "colour": null, "glass": "double glazed",
+    "wind_rating": "unmarked", "water_rating": "unmarked", "vent_locks": "unmarked",
+    "acoustic_seals": "unmarked", "sump_sills": "unmarked",
+    "reveal_28": {"selected": false, "species": "unmarked", "defin": "unmarked"},
+    "reveal_45": {"selected": false, "species": "unmarked", "defin": "unmarked"}
+  },
+  "items": [
+    {
+      "item_no": 1, "room": "Laundry", "qty": 1, "qty_defaulted": false,
+      "description_raw": "bi-fold window, aluminium, laundry",
+      "product_type": "bi_fold", "material": "aluminium",
+      "height_mm": 1200, "width_mm": 900, "screen": "unmarked", "confidence": 0.95
+    }
   ],
-  "notes": "customer wants matching frame colour"
+  "installation": {
+    "building_type": null, "construction": null, "remove_existing": null,
+    "floor_level": null, "brick_removal_m2": null, "scaffold": "unmarked",
+    "men_reqd": null, "time_estimate_hrs": null, "asbestos": "unmarked", "notes": ""
+  },
+  "overall_confidence": 0.95,
+  "unreadable_fields": []
 }

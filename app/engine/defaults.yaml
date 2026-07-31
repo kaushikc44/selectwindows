@@ -1,0 +1,66 @@
+# PLACEHOLDER enrichment data — none of this has been verified against real
+# Select Windows specs/labour rates or AS1170.2/AS2047. See
+# select-windows-domain-brief.md. Tier-3 fields are NEVER extracted or
+# invented by the LLM — they come from here only.
+placeholder: true
+
+# enrichment[product_type][material] — falls back to the unknown/unknown row
+# when a product_type or material isn't recognized.
+enrichment:
+  awning:
+    aluminium: {glass_spec: single, safety_glass_required: false, hardware: ["friction stay", "weather seal"], energy: {u_value: 5.5, shgc: 0.6}, labour_hours_per_item: {small: 2.0, medium: 2.5, large: 3.5, xl: 4.5}, men_required: 1}
+    timber: {glass_spec: single, safety_glass_required: false, hardware: ["friction stay", "weather seal"], energy: {u_value: 4.0, shgc: 0.55}, labour_hours_per_item: {small: 2.5, medium: 3.0, large: 4.0, xl: 5.0}, men_required: 1}
+  casement:
+    aluminium: {glass_spec: single, safety_glass_required: false, hardware: ["casement stay", "espagnolette lock"], energy: {u_value: 5.5, shgc: 0.6}, labour_hours_per_item: {small: 2.0, medium: 2.5, large: 3.5, xl: 4.5}, men_required: 1}
+    timber: {glass_spec: single, safety_glass_required: false, hardware: ["casement stay", "espagnolette lock"], energy: {u_value: 4.0, shgc: 0.55}, labour_hours_per_item: {small: 2.5, medium: 3.0, large: 4.0, xl: 5.0}, men_required: 1}
+  sliding:
+    aluminium: {glass_spec: single, safety_glass_required: false, hardware: ["sliding lock", "roller track"], energy: {u_value: 6.0, shgc: 0.65}, labour_hours_per_item: {small: 2.5, medium: 3.0, large: 4.0, xl: 5.5}, men_required: 2}
+    timber: {glass_spec: single, safety_glass_required: false, hardware: ["sliding lock", "roller track"], energy: {u_value: 4.5, shgc: 0.6}, labour_hours_per_item: {small: 3.0, medium: 3.5, large: 4.5, xl: 6.0}, men_required: 2}
+  double_hung:
+    aluminium: {glass_spec: single, safety_glass_required: false, hardware: ["sash lock", "balance system"], energy: {u_value: 6.0, shgc: 0.6}, labour_hours_per_item: {small: 3.0, medium: 3.5, large: 4.5, xl: 6.0}, men_required: 2}
+    timber: {glass_spec: single, safety_glass_required: false, hardware: ["sash lock", "balance system"], energy: {u_value: 4.5, shgc: 0.55}, labour_hours_per_item: {small: 3.5, medium: 4.0, large: 5.0, xl: 6.5}, men_required: 2}
+  louvre:
+    aluminium: {glass_spec: single, safety_glass_required: false, hardware: ["louvre winder"], energy: {u_value: 6.5, shgc: 0.7}, labour_hours_per_item: {small: 2.0, medium: 2.5, large: 3.5, xl: 4.5}, men_required: 1}
+    timber: {glass_spec: single, safety_glass_required: false, hardware: ["louvre winder"], energy: {u_value: 5.0, shgc: 0.65}, labour_hours_per_item: {small: 2.5, medium: 3.0, large: 4.0, xl: 5.0}, men_required: 1}
+  powerlouvre:
+    aluminium: {glass_spec: single, safety_glass_required: false, hardware: ["motorised louvre actuator"], energy: {u_value: 6.5, shgc: 0.7}, labour_hours_per_item: {small: 2.5, medium: 3.0, large: 4.0, xl: 5.0}, men_required: 1}
+    timber: {glass_spec: single, safety_glass_required: false, hardware: ["motorised louvre actuator"], energy: {u_value: 5.0, shgc: 0.65}, labour_hours_per_item: {small: 3.0, medium: 3.5, large: 4.5, xl: 5.5}, men_required: 1}
+  bi_fold:
+    aluminium: {glass_spec: double_glazed, safety_glass_required: true, hardware: ["multi-point lock", "top/bottom track rollers", "weather seals"], energy: {u_value: 4.5, shgc: 0.5}, labour_hours_per_item: {small: 3.0, medium: 4.0, large: 6.0, xl: 8.0}, men_required: 2}
+    timber: {glass_spec: double_glazed, safety_glass_required: true, hardware: ["multi-point lock", "top/bottom track rollers", "weather seals"], energy: {u_value: 3.5, shgc: 0.45}, labour_hours_per_item: {small: 3.5, medium: 4.5, large: 6.5, xl: 8.5}, men_required: 2}
+  sashless:
+    aluminium: {glass_spec: single, safety_glass_required: false, hardware: ["spiral balance", "sash lock"], energy: {u_value: 6.0, shgc: 0.6}, labour_hours_per_item: {small: 3.0, medium: 3.5, large: 4.5, xl: 6.0}, men_required: 2}
+    timber: {glass_spec: single, safety_glass_required: false, hardware: ["spiral balance", "sash lock"], energy: {u_value: 4.5, shgc: 0.55}, labour_hours_per_item: {small: 3.5, medium: 4.0, large: 5.0, xl: 6.5}, men_required: 2}
+  gas_strut:
+    aluminium: {glass_spec: single, safety_glass_required: false, hardware: ["gas strut", "friction stay"], energy: {u_value: 5.5, shgc: 0.6}, labour_hours_per_item: {small: 2.0, medium: 2.5, large: 3.5, xl: 4.5}, men_required: 1}
+    timber: {glass_spec: single, safety_glass_required: false, hardware: ["gas strut", "friction stay"], energy: {u_value: 4.0, shgc: 0.55}, labour_hours_per_item: {small: 2.5, medium: 3.0, large: 4.0, xl: 5.0}, men_required: 1}
+  stacking:
+    aluminium: {glass_spec: double_glazed, safety_glass_required: true, hardware: ["stacker track", "multi-point lock"], energy: {u_value: 4.5, shgc: 0.5}, labour_hours_per_item: {small: 4.0, medium: 5.0, large: 7.0, xl: 9.0}, men_required: 2}
+    timber: {glass_spec: double_glazed, safety_glass_required: true, hardware: ["stacker track", "multi-point lock"], energy: {u_value: 3.5, shgc: 0.45}, labour_hours_per_item: {small: 4.5, medium: 5.5, large: 7.5, xl: 9.5}, men_required: 2}
+  hinged:
+    aluminium: {glass_spec: double_glazed, safety_glass_required: true, hardware: ["hinges", "multi-point lock", "door handle"], energy: {u_value: 4.5, shgc: 0.5}, labour_hours_per_item: {small: 2.5, medium: 3.0, large: 4.0, xl: 5.0}, men_required: 2}
+    timber: {glass_spec: double_glazed, safety_glass_required: true, hardware: ["hinges", "multi-point lock", "door handle"], energy: {u_value: 3.5, shgc: 0.45}, labour_hours_per_item: {small: 3.0, medium: 3.5, large: 4.5, xl: 5.5}, men_required: 2}
+  cedar_entry:
+    aluminium: {glass_spec: double_glazed, safety_glass_required: true, hardware: ["entry lockset", "hinges", "weather seals"], energy: {u_value: 4.0, shgc: 0.45}, labour_hours_per_item: {small: 3.0, medium: 3.5, large: 4.5, xl: 5.5}, men_required: 2}
+    timber: {glass_spec: double_glazed, safety_glass_required: true, hardware: ["entry lockset", "hinges", "weather seals"], energy: {u_value: 3.0, shgc: 0.4}, labour_hours_per_item: {small: 3.5, medium: 4.0, large: 5.0, xl: 6.0}, men_required: 2}
+  unknown:
+    aluminium: {glass_spec: single, safety_glass_required: false, hardware: [], energy: {u_value: null, shgc: null}, labour_hours_per_item: {small: 2.0, medium: 3.0, large: 4.0, xl: 5.0}, men_required: 1}
+    timber: {glass_spec: single, safety_glass_required: false, hardware: [], energy: {u_value: null, shgc: null}, labour_hours_per_item: {small: 2.0, medium: 3.0, large: 4.0, xl: 5.0}, men_required: 1}
+    unknown: {glass_spec: single, safety_glass_required: false, hardware: [], energy: {u_value: null, shgc: null}, labour_hours_per_item: {small: 2.0, medium: 3.0, large: 4.0, xl: 5.0}, men_required: 1}
+
+# PLACEHOLDER — form's Pa wind rating mapped to an AS-style N-class; not
+# verified against AS1170.2/AS2047, treat as provisional.
+wind_rating_to_n_class:
+  "700": N2
+  "1000": N3
+  "1500": N4
+  "2000": N5
+  other: unmarked
+  unmarked: unmarked
+
+# deterministic default reveal-lining depth (mm) by wall construction
+reveal_depth_by_construction:
+  timber_frame: 28
+  b_veneer: 45
+  cavity_brick: 45
+  other: unmarked

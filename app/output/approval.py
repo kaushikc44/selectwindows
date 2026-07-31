@@ -1,4 +1,5 @@
 # app/output/approval.py
+import json
 import logging
 import smtplib
 from email.mime.application import MIMEApplication
@@ -9,7 +10,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.config import settings
 from app.models import Quote
-from app.output.pdf import ESTIMATED_TAG
+from app.output.pdf import PLACEHOLDER_BANNER
 
 logger = logging.getLogger(__name__)
 
@@ -42,15 +43,25 @@ def build_approval_links(quote_id: str) -> tuple[str, str, str, str]:
     return approve_url, reject_url, approve_token, reject_token
 
 
+def _flags_text(quote: Quote) -> str:
+    if not quote.flags:
+        return ""
+    flags = json.loads(quote.flags)
+    if not flags:
+        return ""
+    lines = "\n".join(f"  - {f['message']}" for f in flags)
+    return f"Flags:\n{lines}\n\n"
+
+
 def _breakdown_text(quote: Quote, approve_url: str, reject_url: str) -> str:
     return (
         f"New quote {quote.id} is ready for review.\n\n"
-        f"Glass subtotal: ${quote.glass_subtotal}\n"
-        f"Waste: ${quote.waste_amount}\n"
-        f"Labour: ${quote.labour_amount}\n"
-        f"Hardware subtotal ({ESTIMATED_TAG} where AI-predicted): ${quote.hardware_subtotal}\n"
+        f"{PLACEHOLDER_BANNER}\n\n"
+        f"Items subtotal: ${quote.items_subtotal}\n"
+        f"Installation subtotal: ${quote.installation_subtotal}\n"
         f"GST: ${quote.gst_amount}\n"
         f"Total: ${quote.total}\n\n"
+        f"{_flags_text(quote)}"
         f"Approve: {approve_url}\n"
         f"Reject: {reject_url}\n"
     )

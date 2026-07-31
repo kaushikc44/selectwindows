@@ -20,6 +20,12 @@ client = OpenAI(
     timeout=settings.LLM_TIMEOUT_SECONDS,
 )
 
+vision_client = OpenAI(
+    base_url=settings.LLM_VISION_BASE_URL or settings.LLM_BASE_URL,
+    api_key=settings.LLM_VISION_API_KEY or settings.LLM_API_KEY,
+    timeout=settings.LLM_TIMEOUT_SECONDS,
+)
+
 
 def _call_with_retries(fn, *, attempts: int) -> str:
     last_exc: Exception | None = None
@@ -46,23 +52,18 @@ def chat_completion(messages: list[dict], *, temperature: float = 0.0) -> str:
     return _call_with_retries(_call, attempts=settings.LLM_MAX_RETRIES + 1)
 
 
-def vision_completion(image_bytes: bytes, prompt: str, *, mime_type: str = "image/jpeg") -> str:
-    encoded = base64.b64encode(image_bytes).decode("ascii")
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-                {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:{mime_type};base64,{encoded}"},
-                },
-            ],
-        }
-    ]
+def vision_completion(images: list[tuple[bytes, str]], prompt: str) -> str:
+    """images: list of (image_bytes, mime_type) pairs, sent alongside one text prompt."""
+    content: list[dict] = [{"type": "text", "text": prompt}]
+    for image_bytes, mime_type in images:
+        encoded = base64.b64encode(image_bytes).decode("ascii")
+        content.append(
+            {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{encoded}"}}
+        )
+    messages = [{"role": "user", "content": content}]
 
     def _call() -> str:
-        response = client.chat.completions.create(
+        response = vision_client.chat.completions.create(
             model=settings.LLM_VISION_MODEL,
             messages=messages,
             temperature=0.0,

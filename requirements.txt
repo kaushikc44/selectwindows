@@ -12,3 +12,7 @@ itsdangerous
 httpx
 pyyaml
 pytest
+svgwrite
+bcrypt
+pyjwt
+python-multipart

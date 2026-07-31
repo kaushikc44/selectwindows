@@ -7,9 +7,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.auth import decode_access_token, hash_password
 from app.db import get_db
 from app.main import app
-from app.models import Base, Quote, QuoteStatus
+from app.models import Base, Quote, QuoteStatus, Worker
 from app.output.approval import build_approval_links
 
 
@@ -105,3 +106,40 @@ def test_reject_token_cannot_be_used_to_approve(client, db_session):
 def test_invalid_token_returns_400(client):
     response = client.get("/approve/not-a-real-token")
     assert response.status_code == 400
+
+
+def test_login_returns_access_token_for_correct_credentials(client, db_session):
+    db_session.add(Worker(username="marcus", name="Marcus Chen", hashed_password=hash_password("pw")))
+    db_session.commit()
+
+    response = client.post("/auth/login", data={"username": "marcus", "password": "pw"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["token_type"] == "bearer"
+    assert decode_access_token(body["access_token"])
+
+
+def test_login_rejects_wrong_password(client, db_session):
+    db_session.add(Worker(username="marcus", name="Marcus Chen", hashed_password=hash_password("pw")))
+    db_session.commit()
+
+    response = client.post("/auth/login", data={"username": "marcus", "password": "wrong"})
+
+    assert response.status_code == 401
+
+
+def test_login_rejects_unknown_username(client):
+    response = client.post("/auth/login", data={"username": "nobody", "password": "pw"})
+    assert response.status_code == 401
+
+
+def test_login_rejects_inactive_worker(client, db_session):
+    db_session.add(
+        Worker(username="marcus", name="Marcus Chen", hashed_password=hash_password("pw"), is_active=False)
+    )
+    db_session.commit()
+
+    response = client.post("/auth/login", data={"username": "marcus", "password": "pw"})
+
+    assert response.status_code == 401

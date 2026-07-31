@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     IMAP_PASSWORD: str = "changeme"
     IMAP_MAILBOX: str = "INBOX"
     IMAP_USE_SSL: bool = True
+    # Only poll unseen mail whose subject contains this text (empty = no filter, poll all unseen).
+    IMAP_SUBJECT_FILTER: str = ""
 
     # SMTP (owner approval email only — no customer email in this PoC)
     SMTP_HOST: str = "smtp.example.com"
@@ -37,14 +39,24 @@ class Settings(BaseSettings):
     LLM_MAX_RETRIES: int = 2
     LLM_TIMEOUT_SECONDS: int = 60
 
+    # Optional separate endpoint for vision calls (falls back to LLM_BASE_URL/LLM_API_KEY if unset)
+    LLM_VISION_BASE_URL: str = ""
+    LLM_VISION_API_KEY: str = ""
+
     # Approval links
     APPROVAL_SECRET_KEY: str = "changeme-signing-key"
     APPROVAL_TOKEN_MAX_AGE_SECONDS: int = 60 * 60 * 24 * 7
     PUBLIC_BASE_URL: str = "http://localhost:8000"
 
-    # Pricing rules / catalog file locations
+    # Worker app auth (JWT bearer tokens — no self-registration, accounts
+    # created by the owner via scripts/create_worker.py)
+    JWT_SECRET_KEY: str = "changeme-jwt-signing-key"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_MINUTES: int = 60 * 24 * 14  # 14 days — field workers, not web sessions
+
+    # Pricing rules / tier-3 enrichment defaults file locations
     RULES_PATH: str = "app/engine/rules.yaml"
-    CATALOG_PATH: str = "app/engine/catalog.yaml"
+    DEFAULTS_PATH: str = "app/engine/defaults.yaml"
 
 
 settings = Settings()

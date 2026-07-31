@@ -5,3 +5,11 @@ __pycache__/
 data/attachments/
 .pytest_cache/
 *.egg-info/
+
+# Celery runtime schedule
+celerybeat-schedule
+
+# Stray local images / scratch files
+IMG_1374.JPG
+image.png
+testfile

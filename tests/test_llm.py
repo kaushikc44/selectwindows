@@ -28,10 +28,22 @@ def test_chat_completion_returns_content_on_success(monkeypatch):
 
 def test_vision_completion_returns_content_on_success(monkeypatch):
     monkeypatch.setattr(
-        llm.client.chat.completions, "create", MagicMock(return_value=_fake_response('{"panels": []}'))
+        llm.vision_client.chat.completions, "create", MagicMock(return_value=_fake_response('{"items": []}'))
     )
-    result = vision_completion(b"fake-bytes", "extract panels")
-    assert result == '{"panels": []}'
+    result = vision_completion([(b"fake-bytes", "image/jpeg")], "extract items")
+    assert result == '{"items": []}'
+
+
+def test_vision_completion_sends_one_content_block_per_image(monkeypatch):
+    mock_create = MagicMock(return_value=_fake_response("ok"))
+    monkeypatch.setattr(llm.vision_client.chat.completions, "create", mock_create)
+
+    vision_completion([(b"page1", "image/jpeg"), (b"page2", "image/png")], "prompt text")
+
+    sent_content = mock_create.call_args.kwargs["messages"][0]["content"]
+    assert sent_content[0] == {"type": "text", "text": "prompt text"}
+    assert len(sent_content) == 3
+    assert all(block["type"] == "image_url" for block in sent_content[1:])
 
 
 def test_retries_then_raises_llm_unavailable(monkeypatch):

@@ -2,12 +2,20 @@
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.owner_quotes import router as owner_quotes_router
+from app.api.sales_quotes import router as sales_quotes_router
+from app.api.sales_quotes import tradies_router as sales_tradies_router
+from app.api.worker_quotes import preview_router as worker_preview_router
+from app.api.worker_quotes import router as worker_quotes_router
+from app.auth import create_access_token, verify_password
 from app.db import create_all, get_db
-from app.models import Quote, QuoteStatus
+from app.models import Quote, QuoteStatus, Worker
 from app.output.approval import InvalidApprovalToken, verify_token
-from app.schemas import QuoteOut
+from app.schemas import QuoteOut, WorkerTokenOut
 
 
 @asynccontextmanager
@@ -17,6 +25,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="GlassQuote PoC", lifespan=lifespan)
+app.include_router(worker_quotes_router)
+app.include_router(worker_preview_router)
+app.include_router(owner_quotes_router)
+app.include_router(sales_quotes_router)
+app.include_router(sales_tradies_router)
+
+
+@app.post("/auth/login", response_model=WorkerTokenOut)
+def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)) -> dict:
+    worker = db.scalar(select(Worker).where(Worker.username == form.username))
+    if worker is None or not worker.is_active or not verify_password(form.password, worker.hashed_password):
+        raise HTTPException(status_code=401, detail="incorrect username or password")
+    return {"access_token": create_access_token(worker.id), "token_type": "bearer", "role": worker.role.value}
 
 
 @app.get("/quotes/{quote_id}", response_model=QuoteOut)
