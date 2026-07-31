@@ -78,5 +78,15 @@ class Settings(BaseSettings):
     # pins on Anthony's map with no extra Nominatim lookup.
     GOOGLE_PLACES_API_KEY: str = ""
 
+    # Score-based auto-approval (maps branch). When a quote reaches
+    # send_for_approval, if its readiness_score is at or above this threshold
+    # AND no blocking flag (asbestos) is present AND the learning agent found
+    # no matching past lesson, the system approves it on Anthony's behalf
+    # instead of emailing him — and logs every auto-approval so he can undo it.
+    # Set AUTO_APPROVE_ENABLED=false to force every quote back through his
+    # manual review queue (the pre-existing behaviour).
+    AUTO_APPROVE_ENABLED: bool = True
+    AUTO_APPROVE_MIN_SCORE: int = 90
+
 
 settings = Settings()

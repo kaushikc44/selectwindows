@@ -14,6 +14,16 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "OwnerQuoteReview">;
 type Rt = RouteProp<RootStackParamList, "OwnerQuoteReview">;
 
 const ACTIONABLE = new Set(["pending_approval", "needs_manual"]);
+// An auto-approved quote (approved without Anthony clicking Approve — see
+// app/workers/pipeline.py::_auto_approve) can still be undone: he can send it
+// back or reject it. Approve is not offered (it would be a no-op).
+const UNDOABLE = new Set(["approved"]);
+
+function authorLabel(author: string): string {
+  if (author === "owner") return "You";
+  if (author === "system") return "AI System";
+  return "Tradie";
+}
 
 export default function OwnerQuoteReviewScreen() {
   const navigation = useNavigation<Nav>();
@@ -79,6 +89,7 @@ export default function OwnerQuoteReviewScreen() {
   }
 
   const actionable = ACTIONABLE.has(detail.status);
+  const undoable = UNDOABLE.has(detail.status);
 
   return (
     <ScrollView style={shared.screen} contentContainerStyle={shared.scrollContent}>
@@ -232,7 +243,7 @@ export default function OwnerQuoteReviewScreen() {
           {detail.comments.map((comment) => (
             <View key={comment.id} style={{ gap: 2 }}>
               <Text style={{ fontWeight: "700", color: colors.ink, fontSize: 13 }}>
-                {comment.author === "owner" ? "You" : "Tradie"}
+                {authorLabel(comment.author)}
                 {comment.action ? ` · ${comment.action.replace("_", " ")}` : ""}
               </Text>
               <Text style={shared.muted}>{comment.body}</Text>
@@ -242,13 +253,18 @@ export default function OwnerQuoteReviewScreen() {
       )}
 
       <View style={shared.card}>
-        <Text style={shared.h2}>{actionable ? "Your Review" : "Add a Comment"}</Text>
+        <Text style={shared.h2}>{actionable ? "Your Review" : undoable ? "Undo Auto-Approval" : "Add a Comment"}</Text>
+        {undoable && (
+          <Text style={shared.muted}>
+            The AI approval system approved this quote on your behalf. Send it back or reject it to undo.
+          </Text>
+        )}
         <TextInput
           style={[shared.input, { minHeight: 70, textAlignVertical: "top" }]}
           value={body}
           onChangeText={setBody}
           multiline
-          placeholder={actionable ? "e.g. Needs safety glass for the low sill" : "Add a note"}
+          placeholder={actionable || undoable ? "e.g. Needs safety glass for the low sill" : "Add a note"}
         />
         {error && <Text style={shared.errorText}>{error}</Text>}
 
@@ -265,6 +281,31 @@ export default function OwnerQuoteReviewScreen() {
                 <Text style={shared.buttonText}>Approve</Text>
               )}
             </TouchableOpacity>
+            <TouchableOpacity
+              style={shared.buttonSecondary}
+              onPress={() => onAction("request_changes")}
+              disabled={submittingAction !== null}
+            >
+              {submittingAction === "request_changes" ? (
+                <ActivityIndicator />
+              ) : (
+                <Text style={shared.buttonSecondaryText}>Send Back for Changes</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[shared.buttonSecondary, { borderColor: colors.danger }]}
+              onPress={() => onAction("reject")}
+              disabled={submittingAction !== null}
+            >
+              {submittingAction === "reject" ? (
+                <ActivityIndicator color={colors.danger} />
+              ) : (
+                <Text style={[shared.buttonSecondaryText, { color: colors.danger }]}>Reject</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : undoable ? (
+          <View style={{ gap: 8 }}>
             <TouchableOpacity
               style={shared.buttonSecondary}
               onPress={() => onAction("request_changes")}

@@ -43,6 +43,14 @@ _QUEUE_STATUSES = (
 # (or nothing) to act next, not another decision from Anthony.
 _ACTIONABLE_STATUSES = (QuoteStatus.pending_approval, QuoteStatus.needs_manual)
 
+# An auto-approved quote sits in `approved` without Anthony ever clicking
+# Approve. He can still undo that — reject it, or send it back to the tradie.
+# Those two actions (not approve, which would be a pointless no-op) are
+# permitted on an approved quote so a score-based auto-approval is always
+# reversible. See app/workers/pipeline.py::_auto_approve.
+_REOPENABLE_STATUSES = (QuoteStatus.approved,)
+_REOPEN_ACTIONS = ("reject", "request_changes")
+
 
 class OwnerQuoteSummary(BaseModel):
     quote_id: str
@@ -440,11 +448,18 @@ def post_comment(
 ) -> dict:
     quote = _get_queue_quote(quote_id, db)
 
-    if body.action != "comment" and quote.status not in _ACTIONABLE_STATUSES:
-        raise HTTPException(
-            status_code=409,
-            detail=f"quote is in status {quote.status.value}, not awaiting a decision",
-        )
+    if body.action != "comment":
+        # Approve/reject/request_changes need a quote awaiting a decision. The
+        # exception is undoing an auto-approval: reject/request_changes are
+        # also allowed on an already-approved quote (but approve is not — it
+        # would be a no-op on an approved quote).
+        if quote.status not in _ACTIONABLE_STATUSES and not (
+            quote.status in _REOPENABLE_STATUSES and body.action in _REOPEN_ACTIONS
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=f"quote is in status {quote.status.value}, not awaiting a decision",
+            )
 
     comment = ApprovalComment(
         quote_id=quote.id,

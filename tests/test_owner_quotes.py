@@ -264,6 +264,39 @@ def test_post_comment_allowed_on_already_approved_quote(client, db_session, trad
     assert response.status_code == 200
 
 
+def test_undo_auto_approval_with_reject(client, db_session, tradie):
+    # An auto-approved quote (sitting in `approved` without Anthony clicking
+    # Approve) is reversible — he can reject it to undo the auto-approval.
+    quote = _quote(db_session, tradie, status=QuoteStatus.approved)
+
+    response = client.post(f"/owner/quotes/{quote.id}/comments", json={"body": "wrong call", "action": "reject"})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+    db_session.refresh(quote)
+    assert quote.status == QuoteStatus.rejected
+
+
+def test_undo_auto_approval_with_request_changes_creates_lesson(client, db_session, tradie):
+    # Sending back an auto-approved quote works the same as a normal
+    # request_changes — it records a LearnedLesson so the agent learns from
+    # the undo, closing the loop on score-based auto-approval.
+    quote = _quote(db_session, tradie, status=QuoteStatus.approved)
+
+    response = client.post(
+        f"/owner/quotes/{quote.id}/comments",
+        json={"body": "Shouldn't have been auto-approved — low sill needs safety glass", "action": "request_changes"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "changes_requested"
+    db_session.refresh(quote)
+    assert quote.status == QuoteStatus.changes_requested
+    lessons = db_session.query(LearnedLesson).all()
+    assert len(lessons) == 1
+    assert lessons[0].fix_summary == "Shouldn't have been auto-approved — low sill needs safety glass"
+
+
 def test_get_owner_quote_returns_comment_thread(client, db_session, tradie):
     quote = _quote(db_session, tradie)
     client.post(f"/owner/quotes/{quote.id}/comments", json={"body": "first pass", "action": "comment"})

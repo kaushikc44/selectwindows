@@ -16,6 +16,7 @@ from app.engine.flags import DOOR_PRODUCT_TYPES, Flag, build_flags, compute_read
 from app.engine.pricing import InstallationInput, ItemInput, load_rules, price_quote
 from app.engine.product_hint import map_product_hint
 from app.models import (
+    ApprovalComment,
     Attachment,
     Installation,
     Item,
@@ -391,7 +392,66 @@ def _run_approval_agent_check(db: Session, quote: Quote) -> None:
         logger.exception("Approval-agent lesson check failed for quote %s", quote.id)
 
 
+# Flag codes that must NEVER be bypassed by auto-approval, no matter how high
+# the readiness score — asbestos is a safety/legal gate that needs a human.
+_AUTO_APPROVE_BLOCKING_FLAG_CODES = frozenset({"asbestos"})
+
+
+def _should_auto_approve(quote: Quote) -> bool:
+    """The score-based gate Anthony opted into: approve on his behalf when the
+    quote is clean enough that manual review adds little. Four conditions, all
+    must hold — disabled by config, a high enough readiness score, no matched
+    past lesson (the learning agent had nothing to flag), and no blocking flag
+    (asbestos). Anything that leaves readiness_score unset (agent check failed
+    before this is called) falls through to manual review."""
+    if not settings.AUTO_APPROVE_ENABLED:
+        return False
+    if quote.readiness_score is None or quote.readiness_score < settings.AUTO_APPROVE_MIN_SCORE:
+        return False
+    notes = json.loads(quote.agent_notes) if quote.agent_notes else []
+    if notes:
+        return False
+    stored_flags = json.loads(quote.flags) if quote.flags else []
+    codes = {f.get("code") for f in stored_flags}
+    if codes & _AUTO_APPROVE_BLOCKING_FLAG_CODES:
+        return False
+    return True
+
+
+def _auto_approve(db: Session, quote: Quote) -> None:
+    """Approve a quote on Anthony's behalf and leave a full audit trail — a
+    status change, an AuditLog event he can see in the quote's history, and an
+    ApprovalComment in the review thread attributed to the system (not
+    "owner") so it's never mistaken for Anthony clicking Approve himself.
+    Reversible: Anthony can reject or send back an approved quote
+    (app/api/owner_quotes.py::post_comment)."""
+    quote.status = QuoteStatus.approved
+    score = quote.readiness_score
+    log_event(db, quote.id, "auto_approved", f"readiness_score={score}")
+    db.add(
+        ApprovalComment(
+            quote_id=quote.id,
+            author="system",
+            action="approve",
+            body=(
+                f"Auto-approved by the AI approval system (readiness {score}/100, "
+                "no asbestos flag, no matched past lesson). Undo with Send Back or Reject."
+            ),
+        )
+    )
+
+
 def send_for_approval(db: Session, quote: Quote) -> None:
+    # Run the learning-agent check first so the readiness score and matched
+    # notes are available to the auto-approve gate below. A failure here is
+    # caught inside _run_approval_agent_check and leaves both unset — which
+    # makes _should_auto_approve return False, so the email still goes out.
+    _run_approval_agent_check(db, quote)
+
+    if _should_auto_approve(quote):
+        _auto_approve(db, quote)
+        return
+
     approve_url, reject_url, approve_token, reject_token = build_approval_links(quote.id)
     quote.approve_token = approve_token
     quote.reject_token = reject_token
@@ -401,7 +461,6 @@ def send_for_approval(db: Session, quote: Quote) -> None:
 
     quote.status = QuoteStatus.pending_approval
     log_event(db, quote.id, "approval_email_sent")
-    _run_approval_agent_check(db, quote)
 
 
 def process_worker_submission_pipeline(db: Session, quote: Quote) -> None:

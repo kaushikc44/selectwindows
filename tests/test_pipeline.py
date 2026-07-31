@@ -11,7 +11,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.ai import classify, extract_ar, extract_email, extract_form
 from app.ingest.poller import PolledImage
-from app.models import Base, Item, Material, ProductType, Quote, QuoteStatus
+from app.models import ApprovalComment, AuditLog, Base, Item, Material, ProductType, Quote, QuoteStatus
 from app.workers.pipeline import (
     process_quote_pipeline,
     process_reply_pipeline,
@@ -38,6 +38,17 @@ def _mock_material_estimate_unavailable(monkeypatch):
     # enrich_item() fallback (source="default") unless a test explicitly
     # overrides this mock to exercise the llm_estimate path.
     monkeypatch.setattr("app.workers.pipeline.generate_material_estimate", MagicMock(return_value=None))
+
+
+@pytest.fixture(autouse=True)
+def _auto_approve_disabled_by_default(monkeypatch):
+    # Score-based auto-approval (app/config.py AUTO_APPROVE_ENABLED) is
+    # feature-flagged. Default it OFF across this suite so the many tests
+    # asserting a quote lands in pending_approval keep describing the
+    # pre-flag behaviour. Tests that exercise auto-approval opt back in by
+    # setting settings.AUTO_APPROVE_ENABLED = True (and the threshold) on
+    # the app.workers.pipeline.settings object.
+    monkeypatch.setattr("app.workers.pipeline.settings.AUTO_APPROVE_ENABLED", False)
 
 
 def _grouped_response(items):
@@ -840,6 +851,146 @@ def test_send_for_approval_readiness_score_penalized_when_lesson_matches(db_sess
     send_for_approval(db_session, quote)
 
     assert quote.readiness_score == 80  # 100 - 20 lesson-match penalty
+
+
+# ---------------------------------------------------------------------------
+# Score-based auto-approval (maps branch).
+#
+# send_for_approval runs the learning-agent check, then a gate: if the quote's
+# readiness_score is at/above AUTO_APPROVE_MIN_SCORE, no blocking flag (asbestos)
+# is present, and the agent found no matching past lesson, it's approved on
+# Anthony's behalf — no approval email, with an audit comment + AuditLog event
+# so it's reversible. The autouse _auto_approve_disabled_by_default fixture
+# keeps this OFF for every other test in this file, so each test below opts in
+# explicitly by flipping settings.AUTO_APPROVE_ENABLED back on.
+# ---------------------------------------------------------------------------
+def _enable_auto_approve(monkeypatch, *, min_score: int = 90):
+    monkeypatch.setattr("app.workers.pipeline.settings.AUTO_APPROVE_ENABLED", True)
+    monkeypatch.setattr("app.workers.pipeline.settings.AUTO_APPROVE_MIN_SCORE", min_score)
+
+
+def _mock_approval_outputs(monkeypatch):
+    monkeypatch.setattr("app.workers.pipeline.generate_quote_pdf", MagicMock(return_value=b"%PDF-fake"))
+    mock_send_email = MagicMock()
+    monkeypatch.setattr("app.workers.pipeline.send_approval_email", mock_send_email)
+    return mock_send_email
+
+
+def test_auto_approves_when_readiness_at_threshold_and_clean(db_session, monkeypatch):
+    quote = Quote(status=QuoteStatus.extracted, flags=json.dumps([{"code": "ar_measurement", "message": "..."}]))
+    db_session.add(quote)
+    db_session.commit()
+
+    _enable_auto_approve(monkeypatch)
+    mock_send_email = _mock_approval_outputs(monkeypatch)
+    monkeypatch.setattr("app.workers.pipeline.check_against_lessons", MagicMock(return_value=[]))
+
+    send_for_approval(db_session, quote)
+
+    # ar_measurement = -10 → readiness 90 = threshold → auto-approved.
+    assert quote.status == QuoteStatus.approved
+    assert quote.readiness_score == 90
+    # No approval email — Anthony wasn't asked.
+    assert mock_send_email.call_count == 0
+    # Audit trail: an AuditLog event + a system-authored approval comment.
+    events = db_session.query(AuditLog).filter(AuditLog.quote_id == quote.id).all()
+    assert any(e.event == "auto_approved" for e in events)
+    comments = db_session.query(ApprovalComment).filter(ApprovalComment.quote_id == quote.id).all()
+    assert len(comments) == 1
+    assert comments[0].author == "system"
+    assert comments[0].action == "approve"
+    assert "Auto-approved" in comments[0].body
+
+
+def test_auto_approve_blocked_below_threshold_stays_pending(db_session, monkeypatch):
+    # ar_measurement (-10) + as1288_safety_glass (-5) → readiness 85 < 90.
+    quote = Quote(
+        status=QuoteStatus.extracted,
+        flags=json.dumps([
+            {"code": "ar_measurement", "message": "..."},
+            {"code": "as1288_safety_glass", "message": "..."},
+        ]),
+    )
+    db_session.add(quote)
+    db_session.commit()
+
+    _enable_auto_approve(monkeypatch)
+    mock_send_email = _mock_approval_outputs(monkeypatch)
+    monkeypatch.setattr("app.workers.pipeline.check_against_lessons", MagicMock(return_value=[]))
+
+    send_for_approval(db_session, quote)
+
+    assert quote.status == QuoteStatus.pending_approval
+    assert mock_send_email.call_count == 1
+
+
+def test_auto_approve_blocked_by_asbestos_even_when_score_passes(db_session, monkeypatch):
+    # asbestos (-30) → readiness 70. Lower the threshold to 60 so the score
+    # gate passes on its own, isolating the asbestos block rule.
+    quote = Quote(status=QuoteStatus.extracted, flags=json.dumps([{"code": "asbestos", "message": "..."}]))
+    db_session.add(quote)
+    db_session.commit()
+
+    _enable_auto_approve(monkeypatch, min_score=60)
+    mock_send_email = _mock_approval_outputs(monkeypatch)
+    monkeypatch.setattr("app.workers.pipeline.check_against_lessons", MagicMock(return_value=[]))
+
+    send_for_approval(db_session, quote)
+
+    assert quote.readiness_score == 70  # above the 60 threshold…
+    assert quote.status == QuoteStatus.pending_approval  # …but asbestos blocks auto-approval
+    assert mock_send_email.call_count == 1
+
+
+def test_auto_approve_blocked_when_learning_agent_matched_a_lesson(db_session, monkeypatch):
+    quote = Quote(status=QuoteStatus.extracted, flags=json.dumps([]))  # readiness 100
+    db_session.add(quote)
+    db_session.commit()
+
+    _enable_auto_approve(monkeypatch)
+    mock_send_email = _mock_approval_outputs(monkeypatch)
+    monkeypatch.setattr(
+        "app.workers.pipeline.check_against_lessons", MagicMock(return_value=["matches a past low-sill correction"])
+    )
+
+    send_for_approval(db_session, quote)
+
+    assert quote.status == QuoteStatus.pending_approval
+    assert mock_send_email.call_count == 1
+
+
+def test_auto_approve_disabled_by_config_falls_back_to_email(db_session, monkeypatch):
+    quote = Quote(status=QuoteStatus.extracted, flags=json.dumps([]))  # readiness 100
+    db_session.add(quote)
+    db_session.commit()
+
+    # Leave AUTO_APPROVE_ENABLED at the autouse-fixture default of False.
+    mock_send_email = _mock_approval_outputs(monkeypatch)
+    monkeypatch.setattr("app.workers.pipeline.check_against_lessons", MagicMock(return_value=[]))
+
+    send_for_approval(db_session, quote)
+
+    assert quote.status == QuoteStatus.pending_approval
+    assert mock_send_email.call_count == 1
+
+
+def test_auto_approve_skipped_when_agent_check_fails(db_session, monkeypatch):
+    quote = Quote(status=QuoteStatus.extracted, flags=json.dumps([]))
+    db_session.add(quote)
+    db_session.commit()
+
+    _enable_auto_approve(monkeypatch)
+    mock_send_email = _mock_approval_outputs(monkeypatch)
+    # Agent check blows up — _run_approval_agent_check swallows it, leaving
+    # readiness_score unset, so the gate can't auto-approve.
+    monkeypatch.setattr("app.workers.pipeline.check_against_lessons", MagicMock(side_effect=RuntimeError("boom")))
+
+    send_for_approval(db_session, quote)
+
+    assert quote.status == QuoteStatus.pending_approval
+    assert mock_send_email.call_count == 1
+    assert quote.agent_notes is None
+    assert quote.readiness_score is None
 
 
 def test_recompute_pricing_and_flags_updates_totals_after_dimension_change(db_session):
