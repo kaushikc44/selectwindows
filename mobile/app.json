@@ -8,6 +8,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.kc.selectwindows",
       "infoPlist": {
         "NSCameraUsageDescription": "Used to photograph each opening for site reference photos.",
         "NSPhotoLibraryUsageDescription": "Used to choose the Measure app screenshot for each width/height reading."

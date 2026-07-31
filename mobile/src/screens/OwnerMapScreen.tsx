@@ -55,6 +55,15 @@ function mapHtml(pins: OwnerMapPin[]): string {
 <script>
   var pins = ${pinsJson};
   var PENDING = "${PENDING_COLOR}", ONGOING = "${ONGOING_COLOR}";
+  // Popup labels below mix free-text client_name/address (typed by tradies
+  // and Sales reps, never sanitised upstream) into an HTML string that
+  // Leaflet's bindPopup renders as-is — escape before concatenating so a
+  // crafted name/address can never inject markup or script into the popup.
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\\"": "&quot;", "'": "&#39;" }[c];
+    });
+  }
   var map = L.map("map", { zoomControl: true, attributionControl: true });
   // OpenStreetMap tiles — requires an internet connection on device.
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -75,11 +84,11 @@ function mapHtml(pins: OwnerMapPin[]): string {
         fillColor: color,
         fillOpacity: 0.95
       });
-      var label = (p.client_name || "Unnamed job") +
-        " &middot; " + p.status.replace(/_/g, " ");
-      if (p.total) label += " &middot; $" + p.total;
-      if (p.scheduled_date) label += " &middot; " + p.scheduled_date;
-      if (p.address) label += "<br/><span style=\\"color:#5f6d78\\">" + p.address + "</span>";
+      var label = escapeHtml(p.client_name || "Unnamed job") +
+        " &middot; " + escapeHtml(p.status.replace(/_/g, " "));
+      if (p.total) label += " &middot; $" + escapeHtml(p.total);
+      if (p.scheduled_date) label += " &middot; " + escapeHtml(p.scheduled_date);
+      if (p.address) label += "<br/><span style=\\"color:#5f6d78\\">" + escapeHtml(p.address) + "</span>";
       m.bindPopup(label, { closeButton: true });
       // One tap on the pin opens that job in the Review screen — the
       // location is already on screen, the next step is the decision.

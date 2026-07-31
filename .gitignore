@@ -2,6 +2,8 @@
 __pycache__/
 *.pyc
 .env
+# Local-only compose override (e.g. republish backend port to avoid collisions)
+docker-compose.override.yml
 data/attachments/
 .pytest_cache/
 *.egg-info/
